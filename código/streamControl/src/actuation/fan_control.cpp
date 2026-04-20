@@ -10,33 +10,24 @@
 // ============================================================================
 
 static percent_t s_fan1_speed = 0;
-static bool s_fan1_enabled = false;
 
 void fan1_init(void) {
-    pinMode(PIN_FAN1_PWM, OUTPUT);
-    digitalWrite(PIN_FAN1_PWM, LOW);
-    // TODO: configurar LEDC PWM
+    // Configurar LEDC: canal 0, pin FAN1, 8 bits, 1kHz
+    ledcSetup(0, 1000, 8);
+    ledcAttachPin(PIN_FAN1_PWM, 0);
+    ledcWrite(0, 0);
     s_fan1_speed = 0;
-    s_fan1_enabled = false;
 }
 
 void fan1_set_speed(percent_t speed) {
     if (speed > 100) speed = 100;
     s_fan1_speed = speed;
-    // TODO: escribir en LEDC
+    uint8_t pwm_duty = FAN1_PWM_MAP(speed);
+    ledcWrite(0, pwm_duty);
 }
 
 percent_t fan1_get_speed(void) {
     return s_fan1_speed;
-}
-
-void fan1_enable(void) {
-    s_fan1_enabled = true;
-}
-
-void fan1_disable(void) {
-    s_fan1_enabled = false;
-    digitalWrite(PIN_FAN1_PWM, LOW);
 }
 
 // ============================================================================
