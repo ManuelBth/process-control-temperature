@@ -19,6 +19,10 @@
 
 // Actuator states
 typedef struct {
+    // Control
+    bool enabled;               // Habilita la tarea de actuación (usado por PID/RST)
+    volatile bool running;      // Flag: tarea corriendo (para sync)
+
     // TRIAC (heater)
     percent_t triac_power;
     bool triac_on;
@@ -48,14 +52,16 @@ extern actuation_state_t g_actuation_state;
 // ACCESS MACROS
 // ============================================================================
 
-#define g_triac_pwr       g_actuation_state.triac_power
-#define g_triac_on        g_actuation_state.triac_on
-#define g_fan1_spd        g_actuation_state.fan1_speed
-#define g_fan1_on         g_actuation_state.fan1_on
-#define g_fan2_on         g_actuation_state.fan2_on
-#define g_relay_on        g_actuation_state.relay_on
-#define g_safety_ovr      g_actuation_state.safety_override
-#define g_emerg_stop      g_actuation_state.emergency_stop
+#define g_act_en          g_actuation_state.enabled
+#define g_act_running   g_actuation_state.running
+#define g_triac_pwr      g_actuation_state.triac_power
+#define g_triac_on       g_actuation_state.triac_on
+#define g_fan1_spd       g_actuation_state.fan1_speed
+#define g_fan1_on        g_actuation_state.fan1_on
+#define g_fan2_on        g_actuation_state.fan2_on
+#define g_relay_on       g_actuation_state.relay_on
+#define g_safety_ovr     g_actuation_state.safety_override
+#define g_emerg_stop     g_actuation_state.emergency_stop
 
 // ============================================================================
 // FUNCTION DECLARATIONS

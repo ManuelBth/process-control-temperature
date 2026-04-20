@@ -9,6 +9,8 @@
 // ============================================================================
 
 actuation_state_t g_actuation_state = {
+    .enabled = false,
+    .running = false,
     .triac_power = 0,
     .triac_on = false,
     .fan1_speed = 0,
@@ -24,6 +26,8 @@ actuation_state_t g_actuation_state = {
 // ============================================================================
 
 void actuation_data_init(void) {
+    g_actuation_state.enabled = false;
+    g_actuation_state.running = false;
     g_actuation_state.triac_power = 0;
     g_actuation_state.triac_on = false;
     g_actuation_state.fan1_speed = 0;
