@@ -19,11 +19,15 @@ typedef uint8_t percent_t;
 #endif
 
 // ============================================================================
-// TRIAC CONFIGURATION
+// AC CONFIGURATION (50Hz)
 // ============================================================================
 
-// TRIAC pin (defined in pins.h)
-// #define TRIAC_PIN ...
+// Half cycle duration (µs)
+#define HALF_CYCLE_US  10000
+
+// ============================================================================
+// TRIAC CONFIGURATION
+// ============================================================================
 
 // TRIAC timing
 #define TRIAC_ZERO_CROSS_DELAY_US    50    // Zero-cross delay (µs)
@@ -33,10 +37,10 @@ typedef uint8_t percent_t;
 #define TRIAC_POWER_MIN    0     // Min power (%)
 #define TRIAC_POWER_MAX   100    // Max power (%)
 
-// TRIAC firing angle (0-90° corresponds to 0-5ms half-cycle)
+// TRIAC firing angle (0-180° corresponds to 0-10ms half-cycle for 50Hz)
 // Lower angle = higher power
-#define TRIAC_ANGLE_MIN   10    // Min firing angle (°)
-#define TRIAC_ANGLE_MAX  140   // Max firing angle (°)
+#define TRIAC_ANGLE_MIN   30    // Min firing angle (°) - near max power
+#define TRIAC_ANGLE_MAX  150    // Max firing angle (°) - near min power
 
 // TRIAC timing table (angle in degrees → delay in µs)
 #define TRIAC_DELAY_TABLE_SIZE 91
@@ -47,11 +51,6 @@ typedef uint8_t percent_t;
 
 // FAN1 pin (defined in pins.h)
 // #define FAN1_PIN ...
-
-// FAN1 PWM configuration
-#define FAN1_PWM_FREQ      25000   // PWM frequency (Hz)
-#define FAN1_PWM_RESOLUTION 8        // PWM resolution (bits)
-#define FAN1_PWM_CHANNEL   0        // LEDC channel
 
 // FAN1 speed limits
 #define FAN1_SPEED_MIN   0      // Min speed (%)
