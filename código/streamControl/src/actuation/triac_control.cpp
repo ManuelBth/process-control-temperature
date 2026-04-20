@@ -10,7 +10,6 @@
 // ============================================================================
 
 static percent_t s_power = 0;
-static bool s_enabled = false;
 static bool s_firing = false;
 
 // ============================================================================
@@ -21,7 +20,6 @@ void triac_init(void) {
     pinMode(PIN_TRIAC, OUTPUT);
     digitalWrite(PIN_TRIAC, LOW);
     s_power = 0;
-    s_enabled = false;
     s_firing = false;
 }
 
@@ -34,34 +32,26 @@ percent_t triac_get_power(void) {
     return s_power;
 }
 
-void triac_enable(void) {
-    s_enabled = true;
-}
-
-void triac_disable(void) {
-    s_enabled = false;
-    digitalWrite(PIN_TRIAC, LOW);
-    s_firing = false;
-}
-
-// Retorna true si es momento de disparar
+// Retorna true si es momento de dispara
 bool triac_process(void) {
-    if (!s_enabled) return false;
     if (s_power == 0) return false;
-    
-    // Calcular delay según potencia
-    // 0% = delay máximo (no dispara)
-    // 100% = delay mínimo (dispara inmediatamente)
-    uint32_t delay_us = ((100 - s_power) * HALF_CYCLE_US) / 100;
-    
+
+    // Mapear potencia (0-100%) a ángulo (30-150°)
+    // 0% potencia → 150° (min power, max delay)
+    // 100% potencia → 30° (max power, min delay)
+    uint8_t angle = TRIAC_ANGLE_MIN + ((100 - s_power) * (TRIAC_ANGLE_MAX - TRIAC_ANGLE_MIN)) / 100;
+
+    // Convertir ángulo a delay: ángulo/180 * 10000µs
+    uint32_t delay_us = (angle * HALF_CYCLE_US) / 180;
+
     uint32_t time_since_zc = zc_time_since();
-    
+
     return (time_since_zc >= delay_us);
 }
 
 void triac_fire(void) {
     if (s_firing) return;
-    
+
     digitalWrite(PIN_TRIAC, HIGH);
     s_firing = true;
     delayMicroseconds(TRIAC_PULSE_US);
