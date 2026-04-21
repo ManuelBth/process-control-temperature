@@ -10,13 +10,6 @@
 #include "FreeRTOSConfig.h"
 
 // ============================================================================
-// TASK HANDLES - Handles for all FreeRTOS tasks
-// ============================================================================
-
-// Forward declarations for task handles (extern in handles.h)
-extern TaskHandle_t xTaskMonitorHandle;
-
-// ============================================================================
 // TASK CONFIGURATION - Stack sizes (in words, 4 bytes each)
 // ============================================================================
 
@@ -24,11 +17,9 @@ extern TaskHandle_t xTaskMonitorHandle;
 #define STACK_MINIMAL    configMINIMAL_STACK_SIZE
 
 // Stack sizes for application tasks
-#define STACK_MONITOR   256
-#define STACK_SENSOR  256
-#define STACK_CTRL   384
-#define STACK_DISP   256
-#define STACK_COMM   512
+#define STACK_SENSOR   256
+#define STACK_CTRL     384
+#define STACK_ACTUATION 256
 
 // ============================================================================
 // PRIORITY CONFIGURATION - Based on task criticality
@@ -37,20 +28,14 @@ extern TaskHandle_t xTaskMonitorHandle;
 // IDLE priority (runs when nothing else)
 #define PRIO_IDLE     tskIDLE_PRIORITY
 
-// Monitor - Debug/logging (lowest)
-#define PRIO_MONITOR (tskIDLE_PRIORITY + 0)
+// Actuation - TRIAC control (low-medium)
+#define PRIO_ACTUATION (tskIDLE_PRIORITY + 1)
 
-// Display - UI updates (low)
-#define PRIO_DISPLAY (tskIDLE_PRIORITY + 0)
-
-// Control - Process control (medium)
-#define PRIO_CONTROL (tskIDLE_PRIORITY + 1)
+// Control - PID control (medium)
+#define PRIO_CONTROL  (tskIDLE_PRIORITY + 2)
 
 // Sensors - Data acquisition (high)
-#define PRIO_SENSOR   (tskIDLE_PRIORITY + 2)
-
-// Communication - WiFi/MQTT (highest)
-#define PRIO_COMM   (tskIDLE_PRIORITY + 3)
+#define PRIO_SENSOR  (tskIDLE_PRIORITY + 3)
 
 // ============================================================================
 // HELPER MACROS
@@ -58,17 +43,6 @@ extern TaskHandle_t xTaskMonitorHandle;
 
 // Convert milliseconds to ticks
 #define MS_TO_TICKS(ms) pdMS_TO_TICKS(ms)
-
-// Create a task with standard parameters
-#define TASK_CREATE(pxTaskCode, pcName, usStackDepth, pvParams, uxPriority, pxCreatedTask) \
-    xTaskCreate( \
-        (TaskFunction_t)(pxTaskCode), \
-        (const char*)(pcName), \
-        (configSTACK_DEPTH_TYPE)(usStackDepth), \
-        (void*)(pvParams), \
-        (UBaseType_t)(uxPriority), \
-        (TaskHandle_t*)(pxCreatedTask) \
-    )
 
 // Delete current task
 #define TASK_DELETE() vTaskDelete(NULL)
@@ -91,8 +65,5 @@ extern TaskHandle_t xTaskMonitorHandle;
 
 // Initialize all tasks
 void task_manager_init(void);
-
-// Task function declarations (to be implemented)
-void vTaskMonitor(void *pvParameters);
 
 #endif // TASK_MANAGER_H
