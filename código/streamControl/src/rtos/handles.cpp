@@ -9,28 +9,16 @@
 // TASK HANDLES - Initialize to NULL
 // ============================================================================
 
-TaskHandle_t xTaskMonitorHandle = NULL;
 TaskHandle_t xTaskSensorHandle = NULL;
 TaskHandle_t xTaskControlHandle = NULL;
-TaskHandle_t xTaskDisplayHandle = NULL;
-TaskHandle_t xTaskCommHandle = NULL;
+TaskHandle_t xTaskActuationHandle = NULL;
 
 // ============================================================================
-// QUEUE HANDLES - Initialize to NULL (created in handles_init)
+// MUTEX HANDLES - Initialize to NULL
 // ============================================================================
 
-QueueHandle_t q_sensor_data = NULL;
-QueueHandle_t q_control_cmd = NULL;
-QueueHandle_t q_display_data = NULL;
-QueueHandle_t q_comm_data = NULL;
-
-// ============================================================================
-// SEMAPHORE HANDLES - Initialize to NULL
-// ============================================================================
-
-SemaphoreHandle_t sem_data_ready = NULL;
-SemaphoreHandle_t sem_system_ready = NULL;
-SemaphoreHandle_t mtx_system_data = NULL;
+SemaphoreHandle_t mtx_temperature = NULL;
+SemaphoreHandle_t mtx_actuation = NULL;
 
 // ============================================================================
 // HANDLES_INIT - Initialize all handles
@@ -39,14 +27,17 @@ SemaphoreHandle_t mtx_system_data = NULL;
 void handles_init(void) {
     Serial.println("[Handles] Initializing...");
 
-    // TODO: Create actual queues when needed
-    // Example:
-    // q_sensor_data = xQueueCreate(10, sizeof(sensor_data_t));
+    // Create mutex for temperature (g_temp)
+    mtx_temperature = xSemaphoreCreateMutex();
+    if (mtx_temperature != NULL) {
+        Serial.println("[Handles] Created mtx_temperature");
+    }
 
-    // TODO: Create actual semaphores when needed
-    // Example:
-    // sem_data_ready = xSemaphoreCreateBinary();
-    // mtx_system_data = xSemaphoreCreateMutex();
+    // Create mutex for actuation (g_triac_pwr)
+    mtx_actuation = xSemaphoreCreateMutex();
+    if (mtx_actuation != NULL) {
+        Serial.println("[Handles] Created mtx_actuation");
+    }
 
-    Serial.println("[Handles] Initialization complete (stubs)");
+    Serial.println("[Handles] Initialization complete");
 }

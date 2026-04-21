@@ -1,5 +1,5 @@
 // ============================================================================
-// Handles - Task handles, queues, semaphores (stubs for now)
+// Handles - Task handles, queues, semaphores
 // ============================================================================
 
 #ifndef HANDLES_H
@@ -14,28 +14,22 @@
 // TASK HANDLES - Handles for all FreeRTOS tasks
 // ============================================================================
 
-extern TaskHandle_t xTaskMonitorHandle;
 extern TaskHandle_t xTaskSensorHandle;
 extern TaskHandle_t xTaskControlHandle;
-extern TaskHandle_t xTaskDisplayHandle;
-extern TaskHandle_t xTaskCommHandle;
+extern TaskHandle_t xTaskActuationHandle;
 
 // ============================================================================
-// QUEUE HANDLES - Handles for inter-task queues
+// QUEUE HANDLES - Handles for inter-task queues (not used for now)
 // ============================================================================
 
-extern QueueHandle_t q_sensor_data;
-extern QueueHandle_t q_control_cmd;
-extern QueueHandle_t q_display_data;
-extern QueueHandle_t q_comm_data;
+// Queue handles can be added later if needed
 
 // ============================================================================
-// SEMAPHORE HANDLES - Handles for synchronization
+// MUTEX HANDLES - For shared data synchronization
 // ============================================================================
 
-extern SemaphoreHandle_t sem_data_ready;
-extern SemaphoreHandle_t sem_system_ready;
-extern SemaphoreHandle_t mtx_system_data;
+extern SemaphoreHandle_t mtx_temperature;   // Protects g_temp
+extern SemaphoreHandle_t mtx_actuation;  // Protects g_triac_pwr
 
 // ============================================================================
 // FUNCTION DECLARATIONS
