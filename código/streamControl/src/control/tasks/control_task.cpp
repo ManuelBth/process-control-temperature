@@ -8,18 +8,28 @@
 #include "../sensors/data/sensor_data.h"
 #include "../sensors/config/sensor_config.h"
 #include "../actuation/data/actuation_data.h"
+#include "../rtos/handles.h"
 
 // ============================================================================
 // TASK
 // ============================================================================
 
 void vControlTask(void *pvParameters) {
+    (void)pvParameters;
+
     TickType_t xLastWakeTime = xTaskGetTickCount();
     const TickType_t xFrequency = pdMS_TO_TICKS(PID_SAMPLE_TIME_MS);
 
+    Serial.println("[Control] Task started");
+
     for (;;) {
-        // Leer temperatura del sensor
-        float temp = g_temp;
+        // Leer temperatura del sensor (con mutex)
+        float temp = 25.0f;  // default
+
+        if (xSemaphoreTake(mtx_temperature, pdMS_TO_TICKS(10)) == pdTRUE) {
+            temp = g_temp;
+            xSemaphoreGive(mtx_temperature);
+        }
 
         // Guardar temperatura en estado
         g_ctrl_temp = temp;
@@ -55,11 +65,17 @@ void vControlTask(void *pvParameters) {
                     break;
             }
 
-            // Escribir a actuation
-            g_triac_pwr = (uint8_t)g_ctrl_out;
+            // Escribir a actuation (con mutex)
+            if (xSemaphoreTake(mtx_actuation, pdMS_TO_TICKS(10)) == pdTRUE) {
+                g_triac_pwr = (uint8_t)g_ctrl_out;
+                xSemaphoreGive(mtx_actuation);
+            }
             g_act_en = true;
         } else {
-            g_triac_pwr = 0;
+            if (xSemaphoreTake(mtx_actuation, pdMS_TO_TICKS(10)) == pdTRUE) {
+                g_triac_pwr = 0;
+                xSemaphoreGive(mtx_actuation);
+            }
         }
 
         // Timing
