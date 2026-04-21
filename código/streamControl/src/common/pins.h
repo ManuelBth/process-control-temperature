@@ -20,10 +20,12 @@ constexpr int PIN_FAN1_PWM = 18;       // Salida: PWM ventilador 1
 constexpr int PIN_FAN2 = 19;          // Salida: ON/OFF ventilador 2
 
 // ============================================================================
-// SENSOR
+// MAX6675 TERMOCOUPLE (VSPI)
 // ============================================================================
 
-constexpr int PIN_PT100 = 36;          // Entrada: PT100 (ADC)
+constexpr int PIN_MAX6675_SCK = 22;     // Clock
+constexpr int PIN_MAX6675_MISO = 25;    // Data output
+constexpr int PIN_MAX6675_CS = 23;     // Chip select
 
 // ============================================================================
 // RELAY
