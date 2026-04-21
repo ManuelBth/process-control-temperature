@@ -6,16 +6,18 @@
 #include "sensor_data.h"
 #include "sensor_config.h"
 #include "drivers/max6675.h"
+#include "../rtos/handles.h"
 
 // ============================================================================
 // TASK
 // ============================================================================
 
 void vSensorTask(void *pvParameters) {
-    TickType_t xLastWakeTime = xTaskGetTickCount();
+    (void)pvParameters;
 
     // Inicializar driver
     max6675_init();
+    Serial.println("[Sensor] Task started");
 
     for (;;) {
         // Determinar intervalo según modo
@@ -26,16 +28,19 @@ void vSensorTask(void *pvParameters) {
         // Leer temperatura
         float temp = max6675_read();
 
-        // Verificar lectura válida
-        if (temp != TEMP_ERROR) {
-            g_temp = temp;
-            g_sensor_err = false;
-        } else {
-            g_sensor_err = true;
-        }
+        // Tomar mutex y escribir
+        if (xSemaphoreTake(mtx_temperature, pdMS_TO_TICKS(10)) == pdTRUE) {
+            // Verificar lectura válida
+            if (temp != TEMP_ERROR) {
+                g_temp = temp;
+                g_sensor_err = false;
+            } else {
+                g_sensor_err = true;
+            }
+            g_sensor_state.last_read_ms = millis();
 
-        // Actualizar timestamp
-        g_sensor_state.last_read_ms = millis();
+            xSemaphoreGive(mtx_temperature);
+        }
 
         // Timing
         vTaskDelay(pdMS_TO_TICKS(interval_ms));
