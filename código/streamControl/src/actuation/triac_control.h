@@ -22,8 +22,9 @@ constexpr int TRIAC_PULSE_US = 50;    // Ancho de pulso de disparo (µs)
 // ============================================================================
 
 void triac_init(void);
+void triac_set_power(percent_t power);
 percent_t triac_get_power(void);
-bool triac_process(void);  // Returns true si debe dispara
+bool triac_process(void);  // Returns true si debe disparar
 void triac_fire(void);
 
 #endif

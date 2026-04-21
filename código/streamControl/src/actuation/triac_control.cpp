@@ -10,6 +10,7 @@
 // ESTADO
 // ============================================================================
 
+static percent_t s_power = 0;
 static bool s_firing = false;
 
 // ============================================================================
@@ -19,23 +20,26 @@ static bool s_firing = false;
 void triac_init(void) {
     pinMode(PIN_TRIAC, OUTPUT);
     digitalWrite(PIN_TRIAC, LOW);
+    s_power = 0;
     s_firing = false;
 }
 
+void triac_set_power(percent_t power) {
+    s_power = power;
+}
+
 percent_t triac_get_power(void) {
-    return g_triac_pwr;
+    return s_power;
 }
 
 // Retorna true si es momento de dispara
 bool triac_process(void) {
-    // Leer potencia directamente de la estructura global
-    percent_t power = g_triac_pwr;
-    if (power == 0) return false;
+    if (s_power == 0) return false;
 
     // Mapear potencia (0-100%) a ángulo (30-150°)
     // 0% potencia → 150° (min power, max delay)
     // 100% potencia → 30° (max power, min delay)
-    uint8_t angle = TRIAC_ANGLE_MIN + ((100 - power) * (TRIAC_ANGLE_MAX - TRIAC_ANGLE_MIN)) / 100;
+    uint8_t angle = TRIAC_ANGLE_MIN + ((100 - s_power) * (TRIAC_ANGLE_MAX - TRIAC_ANGLE_MIN)) / 100;
 
     // Convertir ángulo a delay: ángulo/180 * 10000µs
     uint32_t delay_us = (angle * HALF_CYCLE_US) / 180;
