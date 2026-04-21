@@ -6,33 +6,10 @@
 #include <Arduino.h>
 #include "handles.h"
 
-// ============================================================================
-// PUBLIC TASK HANDLES - Implemented in handles.h
-// ============================================================================
-
-// ============================================================================
-// IDLE TASK - Runs when CPU is idle
-// ============================================================================
-
-void vTaskMonitor(void *pvParameters) {
-    (void)pvParameters;  // Unused
-
-    TickType_t xLastWakeTime = xTaskGetTickCount();
-    uint32_t tick_count = 0;
-
-    Serial.println("[Monitor] Task started");
-
-    for (;;) {
-        // Log system status every 30 seconds
-        if (tick_count % 300 == 0) {
-            Serial.printf("[Monitor] Free heap: %u bytes\n", ESP.getFreeHeap());
-            Serial.printf("[Monitor] Uptime: %lu seconds\n", millis() / 1000);
-        }
-
-        tick_count++;
-        vTaskDelayUntil(&xLastWakeTime, pdMS_TO_TICKS(100));
-    }
-}
+// Include task headers
+#include "../sensors/tasks/sensor_task.h"
+#include "../control/tasks/control_task.h"
+#include "../actuation/tasks/actuation_task.h"
 
 // ============================================================================
 // TASK MANAGER INIT - Register and start all tasks
@@ -44,24 +21,41 @@ void task_manager_init(void) {
     // Initialize handles first (queues, semaphores, etc.)
     handles_init();
 
-    // Create monitor task
-    xTaskCreate(
-        vTaskMonitor,           // Task function
-        "Monitor",            // Task name
-        STACK_MONITOR,         // Stack depth (words)
-        NULL,                 // Parameters
-        PRIO_MONITOR,         // Priority
-        &xTaskMonitorHandle   // Task handle
+    // Create Sensor task (Core 0, highest priority)
+    xTaskCreatePinnedToCore(
+        vSensorTask,
+        "Sensor",
+        STACK_SENSOR,
+        NULL,
+        PRIO_SENSOR,
+        &xTaskSensorHandle,
+        0  // Core 0
     );
+    Serial.printf("[TaskMgr] Created Sensor (handle: %p, core: 0)\n", xTaskSensorHandle);
 
-    Serial.printf("[TaskMgr] Created Monitor task (handle: %p)\n",
-                xTaskMonitorHandle);
+    // Create Control task (Core 0)
+    xTaskCreatePinnedToCore(
+        vControlTask,
+        "Control",
+        STACK_CTRL,
+        NULL,
+        PRIO_CONTROL,
+        &xTaskControlHandle,
+        0  // Core 0
+    );
+    Serial.printf("[TaskMgr] Created Control (handle: %p, core: 0)\n", xTaskControlHandle);
 
-    // TODO: Create other tasks as needed
-    // - vTaskSensor for sensor reading
-    // - vTaskControl for process control
-    // - vTaskDisplay for UI updates
-    // - vTaskComm for WiFi/MQTT
+    // Create Actuation task (Core 0)
+    xTaskCreatePinnedToCore(
+        vActuationTask,
+        "Actuation",
+        STACK_ACTUATION,
+        NULL,
+        PRIO_ACTUATION,
+        &xTaskActuationHandle,
+        0  // Core 0
+    );
+    Serial.printf("[TaskMgr] Created Actuation (handle: %p, core: 0)\n", xTaskActuationHandle);
 
     Serial.println("[TaskMgr] Initialization complete");
 }
