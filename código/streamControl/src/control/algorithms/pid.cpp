@@ -2,8 +2,8 @@
 // PID ALGORITHM
 // ============================================================================
 
-#include "control_data.h"
-#include "control_config.h"
+#include "../data/control_data.h"
+#include "../config/control_config.h"
 
 // ============================================================================
 // PID CALCULATE

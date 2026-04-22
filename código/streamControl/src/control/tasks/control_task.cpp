@@ -3,8 +3,9 @@
 // ============================================================================
 
 #include "control_task.h"
-#include "control_data.h"
-#include "algorithms/pid.h"
+#include <Arduino.h>
+#include "../data/control_data.h"
+#include "../algorithms/pid.h"
 #include "../sensors/data/sensor_data.h"
 #include "../sensors/config/sensor_config.h"
 #include "../actuation/data/actuation_data.h"

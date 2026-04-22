@@ -4,8 +4,8 @@
 
 #include "max6675.h"
 #include <Arduino.h>
-#include "pins.h"
-#include "sensor_config.h"
+#include "../../common/pins.h"
+#include "../config/sensor_config.h"
 
 // Pines definidos en pins.h
 #define MAX6675_SCK  PIN_MAX6675_SCK

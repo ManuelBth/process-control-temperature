@@ -6,10 +6,10 @@
 #include <Arduino.h>
 #include "handles.h"
 
-// Include task headers
-#include "../sensors/tasks/sensor_task.h"
-#include "../control/tasks/control_task.h"
-#include "../actuation/tasks/actuation_task.h"
+// Forward declarations
+extern void vSensorTask(void *pvParameters);
+extern void vControlTask(void *pvParameters);
+extern void vActuationTask(void *pvParameters);
 
 // ============================================================================
 // TASK MANAGER INIT - Register and start all tasks
@@ -17,45 +17,76 @@
 
 void task_manager_init(void) {
     Serial.println("[TaskMgr] Initializing...");
+    Serial.flush();
 
-    // Initialize handles first (queues, semaphores, etc.)
+    // Initialize handles (creates mutexes) 
     handles_init();
+    Serial.println("[TaskMgr] Handles init done");
+    Serial.flush();
+    
+    delay(100);
 
-    // Create Sensor task (Core 0, highest priority)
-    xTaskCreatePinnedToCore(
+    // Create Sensor task on Core 1
+    Serial.println("[TaskMgr] Creating Sensor on Core 1...");
+    Serial.flush();
+    BaseType_t result = xTaskCreatePinnedToCore(
         vSensorTask,
         "Sensor",
-        STACK_SENSOR,
+        2048,
         NULL,
-        PRIO_SENSOR,
+        5,
         &xTaskSensorHandle,
-        0  // Core 0
+        1  // Core 1
     );
-    Serial.printf("[TaskMgr] Created Sensor (handle: %p, core: 0)\n", xTaskSensorHandle);
+    Serial.printf("[TaskMgr] Sensor result: %d, handle: %p\n", result, xTaskSensorHandle);
+    Serial.flush();
+    if (result != pdPASS) {
+        Serial.println("[TaskMgr] ERROR creating Sensor!");
+        return;
+    }
+    
+    delay(100);  // Wait before next task
 
-    // Create Control task (Core 0)
-    xTaskCreatePinnedToCore(
+    // Create Control task on Core 1
+    Serial.println("[TaskMgr] Creating Control on Core 1...");
+    Serial.flush();
+    result = xTaskCreatePinnedToCore(
         vControlTask,
         "Control",
-        STACK_CTRL,
+        2048,
         NULL,
-        PRIO_CONTROL,
+        4,  // Slightly lower priority
         &xTaskControlHandle,
-        0  // Core 0
+        1  // Core 1
     );
-    Serial.printf("[TaskMgr] Created Control (handle: %p, core: 0)\n", xTaskControlHandle);
+    Serial.printf("[TaskMgr] Control result: %d, handle: %p\n", result, xTaskControlHandle);
+    Serial.flush();
+    if (result != pdPASS) {
+        Serial.println("[TaskMgr] ERROR creating Control!");
+        return;
+    }
+    
+    delay(100);  // Wait before next task
 
-    // Create Actuation task (Core 0)
-    xTaskCreatePinnedToCore(
+    // Create Actuation task on Core 1
+    Serial.println("[TaskMgr] Creating Actuation on Core 1...");
+    Serial.flush();
+    result = xTaskCreatePinnedToCore(
         vActuationTask,
         "Actuation",
-        STACK_ACTUATION,
+        2048,
         NULL,
-        PRIO_ACTUATION,
+        3,  // Lowest priority
         &xTaskActuationHandle,
-        0  // Core 0
+        1  // Core 1
     );
-    Serial.printf("[TaskMgr] Created Actuation (handle: %p, core: 0)\n", xTaskActuationHandle);
+    Serial.printf("[TaskMgr] Actuation result: %d, handle: %p\n", result, xTaskActuationHandle);
+    Serial.flush();
+    if (result != pdPASS) {
+        Serial.println("[TaskMgr] ERROR creating Actuation!");
+        return;
+    }
 
-    Serial.println("[TaskMgr] Initialization complete");
+    Serial.println("[TaskMgr] All tasks created successfully!");
+    Serial.flush();
 }

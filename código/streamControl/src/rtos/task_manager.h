@@ -16,10 +16,11 @@
 // Minimum stack size for all tasks
 #define STACK_MINIMAL    configMINIMAL_STACK_SIZE
 
-// Stack sizes for application tasks
-#define STACK_SENSOR   256
-#define STACK_CTRL     384
-#define STACK_ACTUATION 256
+// Stack sizes - smaller for ESP32 Arduino
+// These are much smaller to fit in memory
+#define STACK_SENSOR   1024    // Sensor task stack
+#define STACK_CTRL     1024    // Control task stack  
+#define STACK_ACTUATION 1024  // Actuation task stack
 
 // ============================================================================
 // PRIORITY CONFIGURATION - Based on task criticality
