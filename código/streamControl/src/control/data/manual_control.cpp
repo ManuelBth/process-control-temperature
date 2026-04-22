@@ -5,6 +5,8 @@
 #include "manual_control.h"
 #include "../sensors/data/sensor_data.h"
 #include "../actuation/data/actuation_data.h"
+#include "../control/data/control_data.h"
+#include "../control/config/control_config.h"
 #include <Arduino.h>
 
 // ============================================================================
@@ -68,6 +70,52 @@ static void process_serial(void) {
         case '?': {
             // Status: ?angle,setpoint,active
             Serial.printf("?%d,%.1f,%d\n", s_angle, s_setpoint, s_active ? 1 : 0);
+            break;
+        }
+
+        case 'p': {
+            // START PID mode
+            s_active = true;
+            g_ctrl_mode = CONTROL_MODE_PID;
+            g_ctrl_en = true;
+            g_ctrl_sp = s_setpoint;
+            pid_reset();
+            Serial.println("PID_START");
+            break;
+        }
+
+        case 'o': {
+            // STOP PID / OFF
+            s_active = false;
+            g_ctrl_mode = CONTROL_MODE_OFF;
+            g_ctrl_en = false;
+            g_triac_pwr = 0;
+            g_act_en = false;
+            Serial.println("PID_STOP");
+            break;
+        }
+
+        case 'k': {
+            // Kp: k1.5
+            float kp = cmd.substring(1).toFloat();
+            g_ctrl_kp = kp;
+            Serial.printf("k%.2f\n", kp);
+            break;
+        }
+
+        case 'i': {
+            // Ki: i0.2
+            float ki = cmd.substring(1).toFloat();
+            g_ctrl_ki = ki;
+            Serial.printf("i%.2f\n", ki);
+            break;
+        }
+
+        case 'd': {
+            // Kd: d0.1
+            float kd = cmd.substring(1).toFloat();
+            g_ctrl_kd = kd;
+            Serial.printf("d%.2f\n", kd);
             break;
         }
 
