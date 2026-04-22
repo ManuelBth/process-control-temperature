@@ -15,7 +15,7 @@
 #include "../rtos/handles.h"
 
 // Enable/disable drivers for testing
-#define DRIVERS_ENABLED 0
+#define DRIVERS_ENABLED 1
 
 // ============================================================================
 // VARIABLES
