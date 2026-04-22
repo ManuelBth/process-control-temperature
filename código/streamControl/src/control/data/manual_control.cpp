@@ -7,6 +7,7 @@
 #include "../actuation/data/actuation_data.h"
 #include "../control/data/control_data.h"
 #include "../control/config/control_config.h"
+#include "../control/algorithms/pid.h"
 #include <Arduino.h>
 
 // ============================================================================
