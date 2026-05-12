@@ -7,8 +7,21 @@ void triac_init() {
     digitalWrite(PIN_TRIAC, LOW);
 }
 
-void triac_fire(uint16_t delay_us) {
+void triac_arm(uint16_t semiciclo_us, uint16_t power_percent) {
+    if (power_percent == 0) {
+        digitalWrite(PIN_TRIAC, LOW);
+        return;
+    }
+
+    // Calcular tiempo que debe estar en HIGH proporcional al power
+    uint32_t tiempo_high = (uint32_t)semiciclo_us * power_percent / 100;
+
+    // PIN en HIGH
     digitalWrite(PIN_TRIAC, HIGH);
-    delayMicroseconds(100);
+
+    // Esperar tiempo_high
+    delayMicroseconds(tiempo_high);
+
+    // PIN en LOW
     digitalWrite(PIN_TRIAC, LOW);
 }

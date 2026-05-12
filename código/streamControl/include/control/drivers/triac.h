@@ -4,6 +4,6 @@
 #include <stdint.h>
 
 void triac_init();
-void triac_fire(uint16_t delay_us);
+void triac_arm(uint16_t semiciclo_us, uint16_t power_percent);
 
 #endif

@@ -13,7 +13,7 @@ ControlData g_data = {
     .zc_period_us = 20000,
     .zc_last_us = 0,
     .zc_event = false,
-    .running = false,
+    .running = true,
     .pid_active = true,
     .sensor_valid = false
 };

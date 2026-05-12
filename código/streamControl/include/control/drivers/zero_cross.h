@@ -6,9 +6,12 @@
 void zc_init();
 bool zc_detected();
 uint32_t zc_get_period_us();
+uint32_t zc_get_isr_count();
 
 extern volatile bool g_zc_event;
 extern volatile uint32_t g_zc_period_us;
 extern volatile uint32_t g_zc_last_us;
+extern volatile uint32_t g_zc_isr_count;
+extern volatile uint8_t g_zc_last_state;
 
 #endif

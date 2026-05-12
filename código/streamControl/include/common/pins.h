@@ -3,7 +3,7 @@
 
 #include <stdint.h>
 
-#define PIN_TRIAC         3
+#define PIN_TRIAC         15
 #define PIN_ZERO_CROSS    4
 #define PIN_MAX6675_SCK   5
 #define PIN_MAX6675_MISO 19
