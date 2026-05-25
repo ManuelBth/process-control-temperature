@@ -1,71 +1,78 @@
+// ============================================================================
+// zc_triac_task.cpp — Tarea FreeRTOS de supervisión ZC + TRIAC
+//
+// Esta tarea NO controla el TRIAC directamente.
+// El control ocurre en la ISR del ZC con precisión de microsegundos.
+//
+// Responsabilidades de esta tarea:
+//   1. Leer power_percent del PID y actualizarlo atómicamente para la ISR
+//   2. Telemetría: contar ZC y registrar período
+//   3. Watchdog: apagar TRIAC si se pierde la señal ZC
+// ============================================================================
+
 #include <Arduino.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
+#include <freertos/semphr.h>
 
-#include "control/drivers/triac.h"
 #include "control/drivers/zero_cross.h"
-#include "control/task/zc_triac_task.h"
+#include "control/drivers/triac.h"
+#include "common/data.h"
 
-ZcTriacData g_zc_triac_data = {
-    .zc_count = 0,
-    .period_us = 0,
-    .power_percent = 50,
-    .running = false
-};
+extern ControlData g_data;
 
+static SemaphoreHandle_t s_data_mutex  = NULL;
+static uint32_t          s_last_zc_tick = 0;
+static bool              s_zc_lost      = false;
+
+#define ZC_WATCHDOG_MS  200UL
+
+// ─── Inicialización ──────────────────────────────────────────────────────────
 void zc_triac_task_init() {
     triac_init();
     zc_init();
-    g_zc_triac_data.running = true;
-    g_zc_triac_data.power_percent = 50;
-    Serial.println("ZcTriacTask: drivers initialized");
+    s_data_mutex   = xSemaphoreCreateMutex();
+    s_last_zc_tick = xTaskGetTickCount();
+    Serial.println("ZcTriacTask: inicializado (MOC3021 + BTA08 sin latch)");
 }
 
+// ─── Tarea principal ─────────────────────────────────────────────────────────
 void ZcTriacTask(void* parameter) {
     (void)parameter;
-
     zc_triac_task_init();
 
-    Serial.println("ZcTriacTask started on Core 0");
-    Serial.flush();
-
-    uint32_t last_print_time = 0;
-    uint32_t last_isr_count = 0;
-
     while (true) {
-        // Debug: ver si la ISR se está ejecutando (cada 2 segundos)
-        uint32_t now = millis();
-        if (now - last_print_time >= 2000) {
-            last_print_time = now;
-
-            // Debug ISR count
-            uint32_t current_isr = zc_get_isr_count();
-            Serial.printf("[ZC-DEBUG] isr_count=%u (delta=%d in 2s)\n",
-                         current_isr, current_isr - last_isr_count);
-            last_isr_count = current_isr;
-
-            // Datos del ZC-TRIAC
-            float freq_hz = g_zc_triac_data.period_us > 0
-                ? 1000000.0f / g_zc_triac_data.period_us
-                : 0.0f;
-            Serial.printf("[ZC-TRIAC] count=%u period=%u us (%.1f Hz) power=%u%% delay=%u us\n",
-                         g_zc_triac_data.zc_count,
-                         g_zc_triac_data.period_us,
-                         freq_hz,
-                         g_zc_triac_data.power_percent,
-                         g_zc_triac_data.fire_delay_us);
-            Serial.flush();
+        // ── 1. Actualizar power_percent para la ISR ───────────────────────────
+        if (xSemaphoreTake(s_data_mutex, pdMS_TO_TICKS(2)) == pdTRUE) {
+            float raw = g_data.power_percent;
+            if (raw < 0.0f)   raw = 0.0f;
+            if (raw > 100.0f) raw = 100.0f;
+            zc_set_power((uint8_t)raw);
+            xSemaphoreGive(s_data_mutex);
         }
 
-        // Esperar a que ocurra un cruce por cero
+        // ── 2. Telemetría ─────────────────────────────────────────────────────
         if (zc_detected()) {
-            g_zc_triac_data.zc_count++;
-            g_zc_triac_data.period_us = zc_get_period_us();
+            s_last_zc_tick = xTaskGetTickCount();
+            s_zc_lost = false;
 
-            // Armar el timer del TRIAC con el semiciclo actual y power
-            triac_arm(g_zc_triac_data.period_us, g_zc_triac_data.power_percent);
+            if (xSemaphoreTake(s_data_mutex, pdMS_TO_TICKS(1)) == pdTRUE) {
+                g_data.zc_count++;
+                g_data.zc_period_us = zc_get_period_us();
+                xSemaphoreGive(s_data_mutex);
+            }
         }
 
-        vTaskDelay(10 / portTICK_PERIOD_MS);
+        // ── 3. Watchdog ───────────────────────────────────────────────────────
+        uint32_t elapsed = (xTaskGetTickCount() - s_last_zc_tick) * portTICK_PERIOD_MS;
+        if (elapsed > ZC_WATCHDOG_MS && !s_zc_lost) {
+            s_zc_lost = true;
+            zc_set_power(0);
+            triac_arm(0, 0);
+            Serial.printf("ZcTriacTask: WARNING señal ZC perdida (%lu ms) → TRIAC OFF\n",
+                          elapsed);
+        }
+
+        vTaskDelay(pdMS_TO_TICKS(5));
     }
 }

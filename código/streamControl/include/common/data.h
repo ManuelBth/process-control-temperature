@@ -12,10 +12,8 @@ struct ControlData {
     float integral;
     float last_error;
     float power_percent;
-    uint16_t triac_delay_us;
     uint32_t zc_period_us;
-    uint32_t zc_last_us;
-    bool zc_event;
+    uint32_t zc_count;
     bool running;
     bool pid_active;
     bool sensor_valid;

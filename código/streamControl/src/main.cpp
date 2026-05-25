@@ -7,10 +7,10 @@
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
 
-#include "common/pins.h"
-#include "control/drivers/triac.h"
-#include "control/drivers/zero_cross.h"
+#include "common/data.h"
+#include "control/task/control_task.h"
 #include "control/task/zc_triac_task.h"
+#include "control/task/logger_task.h"
 
 void setup() {
     Serial.begin(115200);
@@ -18,25 +18,41 @@ void setup() {
     Serial.println("\n=== StreamControl FreeRTOS ===");
     Serial.flush();
 
-    // Inicializar datos del ZC-TRIAC
-    g_zc_triac_data.power_percent = 50;  // 50% hardcoded
-    g_zc_triac_data.running = true;
+    // Crear ControlTask (lee sensor, calcula PID)
+    BaseType_t ret1 = xTaskCreatePinnedToCore(
+        ControlTask,
+        "ControlTask",
+        4096,
+        nullptr,
+        5,
+        nullptr,
+        0  // Core 0
+    );
+    Serial.println(ret1 == pdPASS ? "ControlTask created on Core 0" : "ERROR: ControlTask");
 
-    BaseType_t ret = xTaskCreatePinnedToCore(
+    // Crear ZcTriacTask (detecta ZC, dispara TRIAC)
+    BaseType_t ret2 = xTaskCreatePinnedToCore(
         ZcTriacTask,
         "ZcTriacTask",
         4096,
         nullptr,
         5,
         nullptr,
-        0
+        1  // Core 1
     );
+    Serial.println(ret2 == pdPASS ? "ZcTriacTask created on Core 1" : "ERROR: ZcTriacTask");
 
-    if (ret == pdPASS) {
-        Serial.println("ZcTriacTask created on Core 0");
-    } else {
-        Serial.println("ERROR: Failed to create ZcTriacTask");
-    }
+    // Crear LoggerTask (log cada 1 segundo)
+    BaseType_t ret3 = xTaskCreatePinnedToCore(
+        LoggerTask,
+        "LoggerTask",
+        4096,
+        nullptr,
+        3,
+        nullptr,
+        0  // Core 0
+    );
+    Serial.println(ret3 == pdPASS ? "LoggerTask created on Core 0" : "ERROR: LoggerTask");
 
     Serial.println("=== Ready ===");
     Serial.flush();

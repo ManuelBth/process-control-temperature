@@ -5,6 +5,7 @@
 
 void zc_init();
 bool zc_detected();
+void zc_set_power(uint8_t power_percent);
 uint32_t zc_get_period_us();
 uint32_t zc_get_isr_count();
 
