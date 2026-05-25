@@ -34,22 +34,11 @@ void ServerCallbacks::onDisconnect(NimBLEServer* pServer) {
 // Characteristic Callbacks - Data Received from App
 // ============================================
 void MyCallbacks::onWrite(NimBLECharacteristic* pCharacteristic) {
-    Serial.println("[BLE] onWrite called!");
-
     NimBLEAttValue value = pCharacteristic->getValue();
     const uint8_t* data = value.data();
     uint16_t length = value.length();
 
-    Serial.printf("[BLE] Received %d bytes\n", length);
-
     if (length > 0 && data != nullptr) {
-        // Print received data
-        Serial.print("[BLE] Data: ");
-        for (uint16_t i = 0; i < length; i++) {
-            Serial.print((char)data[i]);
-        }
-        Serial.println();
-
         // Parse the incoming JSON message
         char* json_buffer = (char*)malloc(length + 1);
         if (json_buffer != nullptr) {
@@ -137,5 +126,4 @@ void ble_send_notification(const uint8_t* data, size_t length) {
     NimBLEAttValue value;
     value.setValue(data, length);
     pRxChar->notify(value, true);
-    Serial.printf("[BLE] Sent %d bytes\n", length);
 }

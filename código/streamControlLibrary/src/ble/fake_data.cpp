@@ -43,7 +43,6 @@ char* create_batch_json(sample_t* samples, uint16_t count) {
     }
 
     cJSON_AddStringToObject(root, "type", "control_data");
-    cJSON_AddNumberToObject(root, "count", count);
 
     cJSON* samples_array = cJSON_CreateArray();
     cJSON_AddItemToObject(root, "samples", samples_array);

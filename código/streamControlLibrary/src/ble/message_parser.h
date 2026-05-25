@@ -14,6 +14,7 @@ typedef struct {
     float kd;                     // PID derivative gain
     const char* control_mode;     // Control mode string
     float setpoint;                // Target setpoint
+    bool perturbation_triggered;   // From perturbation command
     bool valid;                    // Parsing succeeded
 } parsed_message_t;
 
@@ -30,5 +31,8 @@ parsed_message_t message_parser_parse(char* json, int len);
 
 // Get the current system state (for external use)
 extern volatile uint32_t g_sample_interval_ms;
+
+// Check and reset perturbation flag
+bool perturbation_was_triggered(void);
 
 #endif // MESSAGE_PARSER_H
