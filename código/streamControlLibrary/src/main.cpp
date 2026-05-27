@@ -91,9 +91,8 @@ void setup() {
 
     print_banner();
 
-    // Initialize fan PWM at 20%
+    // Initialize fan PWM — arranca directo con velocidad base (50%)
     fan_init();
-    fan_set_speed(20.0f);
 
     // Initialize BLE subsystem (creates NimBLE task internally)
     state_machine_init();
