@@ -1,4 +1,5 @@
 #include "common/data.h"
+#include "drivers/fan.h"
 
 ControlData g_data = {
     .temperature = 0.0f,
@@ -9,7 +10,7 @@ ControlData g_data = {
     .integral = 0.0f,
     .last_error = 0.0f,
     .power_percent = 0.0f,
-    .fan_speed = 20.0f,       // 20% PWM normal ventiladores
+    .fan_speed = FAN_SPEED_NORMAL,   // Flujo de aire base para homogeneización
     .zc_period_us = 0,
     .zc_count = 0,
     .running = false,
