@@ -100,15 +100,15 @@ parsed_message_t message_parser_parse(char* json, int len) {
         state_machine_transition_to_idle();
         g_data.running = false;
         g_data.pid_active = false;
+        // NOTA: El ventilador NO se apaga. Se mantiene en la velocidad actual
+        // (normalmente 20%) para preservar flujo de aire de homogeneización.
         result.valid = true;
 
     } else if (strcmp(result.type, "perturbation") == 0) {
         cJSON* pertur = cJSON_GetObjectItem(root, "pertur");
         if (cJSON_IsBool(pertur)) {
             g_perturbation_triggered = cJSON_IsTrue(pertur);
-            // Perturbación: ventiladores al 100%, normal: 20%
-            g_data.fan_speed = g_perturbation_triggered ? 100.0f : 20.0f;
-            fan_set_speed(g_data.fan_speed);
+            fan_set_perturbation(g_perturbation_triggered);
         }
         result.valid = true;
     }
