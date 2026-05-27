@@ -1,0 +1,4 @@
+(sym_lib_table
+	(version 7)
+	(lib (name "ESP32-DEVKIT-V1.1") (type "KiCad") (uri "/media/manuelbth/6136e182-7c9f-4766-a146-327c0ad0f1e6/manuebth/GitHub/process-control-temperature/circuitos/files/DEVKIT_V1_ESP32-WROOM-32/DEVKIT_V1_ESP32-WROOM-32.kicad_sym") (options "") (descr ""))
+)
