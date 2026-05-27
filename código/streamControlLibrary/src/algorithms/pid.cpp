@@ -33,7 +33,7 @@ float pid_calculate(float temperature, float setpoint, float dt) {
     s_last_error = error;
 
     float out = p + i + d;
-    if (out > 100.0f) out = 100.0f;
+    if (out > 50.0f) out = 50.0f;   // Límite máximo de potencia al 40%
     if (out < 0.0f) out = 0.0f;
     return out;
 }
