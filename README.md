@@ -18,9 +18,9 @@
 - [Especificaciones Técnicas](#especificaciones-técnicas)
 - [Arquitectura del Firmware](#arquitectura-del-firmware)
 - [Hardware](#hardware)
-- [Protocolo de Comunicación BLE](#protocolo-de-comunicación-ble)
+- [Control de Potencia AC](#control-de-potencia-ac)
+- [Protocolo de Comunicación](#protocolo-de-comunicación)
 - [Modelo de Datos Centralizado](#modelo-de-datos-centralizado)
-- [Aplicación Móvil (Especificación)](#aplicación-móvil-especificación)
 - [Diseño de PCBs](#diseño-de-pcbs)
 - [Estructura del Repositorio](#estructura-del-repositorio)
 - [Configuración del Entorno de Desarrollo](#configuración-del-entorno-de-desarrollo)
@@ -39,9 +39,9 @@
 
 Este proyecto implementa un **sistema de control de procesos térmicos** diseñado para una planta piloto académica. El objetivo es mantener la temperatura de un sistema térmico en un rango operativo de **18°C a 150°C** mediante diferentes estrategias de control clásicas, con capacidad de identificación paramétrica del sistema y supervisión inalámbrica vía Bluetooth Low Energy.
 
-El sistema está construido sobre una arquitectura **bare-metal + RTOS**, donde el firmware corre sobre un **ESP32** utilizando **FreeRTOS** para garantizar determinismo temporal en tareas críticas de control de potencia AC. La interfaz de usuario es una **aplicación Android** (en desarrollo) que actúa como HMI (Human-Machine Interface), permitiendo monitoreo en tiempo real, configuración de parámetros de control, y exportación de datos de sesión.
+El firmware corre sobre un **ESP32-WROOM-32** utilizando **FreeRTOS** para garantizar determinismo temporal en tareas críticas de control de potencia AC. La potencia de la resistencia calefactora se controla mediante **modulación de fase con TRIAC**, sincronizada por detección de cruce por cero de la red eléctrica 50 Hz. La comunicación inalámbrica vía BLE permite telemetría en tiempo real y configuración remota del controlador.
 
-**Palabras clave:** Control PID, Control RST, Identificación de Sistemas, ESP32, FreeRTOS, BLE GATT, TRIAC, Modulación de Fase, KiCad.
+**Palabras clave:** Control PID, Control RST, Identificación de Sistemas, ESP32, FreeRTOS, BLE GATT, TRIAC, Modulación de Fase, Cruce por Cero, KiCad.
 
 ---
 
@@ -49,9 +49,8 @@ El sistema está construido sobre una arquitectura **bare-metal + RTOS**, donde 
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│                           APLICACIÓN ANDROID (HMI)                            │
-│                     Jetpack Compose · Vico Charts · BLE GATT                   │
-│                          Min SDK 29 (Android 10+)                              │
+│                         INTERFAZ INALÁMBRICA (BLE)                            │
+│                    JSON GATT — Telemetría, Configuración                      │
 └─────────────────────────────────────┬───────────────────────────────────────┘
                                       │ BLE 4.2/5.0
                                       │ JSON over GATT Notify/Write
@@ -248,9 +247,9 @@ AC 220V
 
 ---
 
-## Protocolo de Comunicación BLE
+## Protocolo de Comunicación
 
-> **Protocolo oficial:** El firmware implementa el protocolo definido en [`app/PRD.md`](app/PRD.md).
+El firmware expone un servidor BLE GATT que permite telemetría en tiempo real, configuración de parámetros de control y manipulación de actuadores vía mensajes JSON.
 
 ### Servicio GATT
 
@@ -258,16 +257,14 @@ AC 220V
 |-----------|-------|
 | **Nombre del dispositivo** | `StreamControl` |
 | **UUID del servicio** | `0000FFF0-0000-1000-8000-00805F9B34FB` |
-| **UUID RX (App → ESP32)** | `0000FFF1-0000-1000-8000-00805F9B34FB` (Write) |
-| **UUID TX (ESP32 → App)** | `0000FFF2-0000-1000-8000-00805F9B34FB` (Notify) |
-| **MTU negociado** | 512 bytes (requerido por la app para evitar fragmentación) |
+| **UUID RX (Write)** | `0000FFF1-0000-1000-8000-00805F9B34FB` |
+| **UUID TX (Notify)** | `0000FFF2-0000-1000-8000-00805F9B34FB` |
+| **MTU** | 512 bytes |
 | **Intervalo de advertising** | 100 ms |
 | **Intervalo de conexión** | 7.5 — 10 ms |
 | **Timeout de conexión** | 5000 ms |
 
-### Tipos de Mensaje (v2.0 — Oficial)
-
-#### 1. Telemetría — ESP32 → App (Notify)
+### Mensajes desde el ESP32 (Notify)
 
 **Frecuencia:** 1 Hz
 
@@ -289,11 +286,9 @@ AC 220V
 }
 ```
 
-> El parser de la app usa `kotlinx.serialization` con `ignoreUnknownKeys = true` para tolerar campos experimentales del firmware.
+### Mensajes hacia el ESP32 (Write)
 
-#### 2. Control Manual — App → ESP32 (Write)
-
-> **Condición:** Enviado cuando la app está en modo Manual.
+#### Control Manual
 
 | Campo | Clave | Tipo | Rango | Descripción |
 |-------|-------|------|-------|-------------|
@@ -301,8 +296,6 @@ AC 220V
 | Ventiladores | `fans` | int[2] | 0 — 255 | `[fan1, fan2]` PWM |
 | Resistencia | `heat` | int | 0 — 255 | PWM de la resistencia calefactora |
 | AC | `ac` | bool | true/false | Corte físico de corriente AC |
-
-**Ejemplo:**
 
 ```json
 {
@@ -313,9 +306,7 @@ AC 220V
 }
 ```
 
-#### 3. Inicio de Control PID — App → ESP32 (Write)
-
-> **Condición:** Enviado al presionar "Iniciar Control" en modo PID.
+#### Configuración PID
 
 | Campo | Clave | Tipo | Rango | Descripción |
 |-------|-------|------|-------|-------------|
@@ -328,8 +319,6 @@ AC 220V
 | PID · Kd | `pid.kd` | float | ≥ 0 | Ganancia derivativa |
 | PID · Ts | `pid.ts` | int | 50—5000 ms | Tiempo de muestreo |
 | PID · Ttotal | `pid.ttotal` | int | > 0 s | Duración planificada del ensayo |
-
-**Ejemplo:**
 
 ```json
 {
@@ -346,16 +335,12 @@ AC 220V
 }
 ```
 
-#### 4. Perturbación de Ventiladores — App → ESP32 (Write)
-
-> **Condición:** Enviado durante modo PID para introducir perturbaciones externas.
+#### Perturbación de Ventiladores
 
 | Campo | Clave | Tipo | Rango | Descripción |
 |-------|-------|------|-------|-------------|
 | Operación | `op` | string | `"perturb"` | Perturbación |
 | Ventiladores | `fans` | int[2] | 0 — 255 | `[fan1, fan2]` PWM |
-
-**Ejemplo:**
 
 ```json
 {
@@ -364,9 +349,7 @@ AC 220V
 }
 ```
 
-#### 5. Detener Operación — App → ESP32 (Write)
-
-**Ejemplo:**
+#### Detener Operación
 
 ```json
 {"op": "stop"}
@@ -406,7 +389,7 @@ typedef struct {
 | Valor | Modo | Descripción |
 |-------|------|-------------|
 | `0` | `CONTROL_MODE_OFF` | Sistema apagado, actuadores en estado seguro |
-| `1` | `CONTROL_MODE_MANUAL` | Control directo de actuadores desde la app |
+| `1` | `CONTROL_MODE_MANUAL` | Control directo de actuadores vía interfaz BLE |
 | `2` | `CONTROL_MODE_PID` | Lazo cerrado PID automático |
 | `3` | `CONTROL_MODE_RST` | Controlador RST digital (planificado) |
 
@@ -426,90 +409,143 @@ El sistema expone macros para acceso directo a variables críticas sin necesidad
 
 ---
 
-## Aplicación Móvil (Especificación)
+## Control de Potencia AC
 
-> **Estado:** Especificación completa. Código fuente Kotlin no incluido en este repositorio.
+### Principio de Modulación de Fase (Phase Firing)
 
-La aplicación Android actúa como HMI y está especificada en `app/PRD.md`. Arquitectura propuesta:
+El control de potencia de la resistencia calefactora se realiza mediante **modulación de fase con TRIAC**. A diferencia del control PWM usado en DC, en AC no se puede cortar la onda en cualquier momento: el TRIAC se dispara después del cruce por cero y conduce hasta el siguiente cruce por cero natural.
 
-### Stack de la App
-
-| Capa | Tecnología |
-|------|------------|
-| Lenguaje | Kotlin 2.0.0 |
-| UI | Jetpack Compose (Single Activity) |
-| Min/Target SDK | API 29 / API 35 |
-| Gráficas | Vico Charts (`com.patrykandpatrick.vico`) |
-| BLE | Android BluetoothLeScanner + BluetoothGatt |
-| Serialización | Kotlinx Serialization JSON |
-| Inyección de dependencias | Koin 3.5.6 |
-| Concurrencia | Kotlin Coroutines + Flow |
-
-### Arquitectura
+**Relación delay-potencia:**
 
 ```
-┌──────────────────────────────────────────────────────────────┐
-│                        UI Layer (Compose)                     │
-│  ConnectionHeader · LiveChartSection · ControlPanel · Footer  │
-└──────────────────────────┬───────────────────────────────────┘
-                           │ StateFlow<T>
-                           ▼
-┌──────────────────────────────────────────────────────────────┐
-│                     ViewModel Layer                           │
-│  MonitoringViewModel · ControlViewModel · SessionViewModel    │
-└──────────────────────────┬───────────────────────────────────┘
-                           │ UseCase
-                           ▼
-┌──────────────────────────────────────────────────────────────┐
-│                    Domain Layer                               │
-│  TelemetryData · PidParameters · ControlCommand · AppMode     │
-└──────────────────────────┬───────────────────────────────────┘
-                           │ Repository Interface
-                           ▼
-┌──────────────────────────────────────────────────────────────┐
-│                     Data Layer                                │
-│  BluetoothRepositoryImpl · StorageRepositoryImpl              │
-│  TelemetryParser (JSON → Domain) · LogFileWriter (CSV)        │
-└──────────────────────────┬───────────────────────────────────┘
-                           │ BLE GATT
-                           ▼
-┌──────────────────────────────────────────────────────────────┐
-│                     ESP32 (Firmware)                          │
-└──────────────────────────────────────────────────────────────┘
+Potencia = 100% → delay = 0 µs   (disparo inmediato en el cruce por cero)
+Potencia = 50%  → delay = 5 ms   (disparo a mitad del semiciclo)
+Potencia = 0%   → delay = 10 ms  (sin disparo)
 ```
 
-### Modos de Operación de la App
-
-| Modo | Control de actuadores | Configuración PID | Perturbación (fans) |
-|------|----------------------|-------------------|---------------------|
-| **Manual** | Sliders PWM directos (heat, f1, f2) + Switch AC | Deshabilitado | Habilitado |
-| **Control PID** | Deshabilitado (ESP32 controla internamente) | Setpoint, Kp, Ki, Kd, Ts, Ttotal | Habilitado (perturbación externa) |
-
-### Exportación de Sesiones
-
-- **Formato:** CSV con encabezado de metadatos
-- **Nomenclatura:** `LOG_YYYYMMDD_HHMMSS.txt`
-- **Ubicación:** `Android/data/com.app.thermalcontrol/files/sessions/`
-- **Contenido:** Timestamp, temperatura, PWMs, estado AC, estado del sistema
-- **Share:** Compartible vía `ShareCompat` (Drive, WhatsApp, email)
-
-### Máquina de Estados BLE
+### Diagrama de Timing: Señal AC, Cruce por Cero y Disparo del TRIAC
 
 ```
-DISCONNECTED ──scan()──► SCANNING ──device found──► CONNECTING
-    ▲                                                    │
-    │                GATT connected                      │ RSSI ≥ -80 dBm
-    │                      ▼                             │ (auto-reconnect)
-    │               CONNECTED_READY ◄────────────────────┘
-    │                      │
-    │         start control / manual
-    │                      ▼
-    └────────────── RUNNING (data flow active)
-                           │
-                    stop / error
-                           ▼
-                    CONNECTED_READY
+RED AC 220V (50 Hz) — Semiciclos de 10 ms
+
+    Senoide AC
+    │
+311V├─╭─╮       ╭─╮       ╭─╮       ╭─╮
+    │╭╯ ╰╮     ╭╯ ╰╮     ╭╯ ╰╮     ╭╯ ╰╮
+  0V├──┬──┬─────┬──┬─────┬──┬─────┬──┬──► t
+    │  │  │     │  │     │  │     │  │
+    │  │  │     │  │     │  │     │  │
+-311V├─╯  ╰─────╯  ╰─────╯  ╰─────╯  ╰─
+    │
+    │
+ZC ISR (GPIO 4, RISING)
+    │
+    │     ┌┐          ┌┐          ┌┐          ┌┐
+    ├─────┘└──────────┘└──────────┘└──────────┘└────►
+    │     ↑           ↑           ↑           ↑
+    │   Cruce       Cruce       Cruce       Cruce
+    │   ascendente  ascendente  ascendente  ascendente
+    │
+    │
+TRIAC Gate (GPIO 15) — Potencia 25%
+    │
+    │            ┌──┐              ┌──┐
+    ├────────────┘  └──────────────┘  └───────────────►
+    │            ↑  ↑              ↑  ↑
+    │         delay=7.5ms       delay=7.5ms
+    │         (disparo)         (disparo)
+    │         conduce hasta     conduce hasta
+    │         próximo cruce     próximo cruce
+    │
+    │
+TRIAC Gate (GPIO 15) — Potencia 50%
+    │
+    │       ┌────┐            ┌────┐
+    ├───────┘    └────────────┘    └──────────────────►
+    │       ↑    ↑            ↑    ↑
+    │    delay=5ms          delay=5ms
+    │    (disparo)          (disparo)
+    │    conduce 5ms        conduce 5ms
+    │
+    │
+TRIAC Gate (GPIO 15) — Potencia 75%
+    │
+    │     ┌──────┐          ┌──────┐
+    ├─────┘      └──────────┘      └──────────────────►
+    │     ↑      ↑          ↑      ↑
+    │  delay=2.5ms        delay=2.5ms
+    │  (disparo)          (disparo)
+    │  conduce 7.5ms      conduce 7.5ms
+    │
+    │
+TRIAC Gate (GPIO 15) — Potencia 100%
+    │
+    │   ┌────────┐        ┌────────┐
+    ├───┘        └────────┘        └──────────────────►
+    │   ↑        ↑        ↑        ↑
+    │ delay=0ms           delay=0ms
+    │ (disparo inmediato) (disparo inmediato)
+    │ conduce 10ms        conduce 10ms
+    │
+    └───────────────────────────────────────────────────►
+          0ms    5ms   10ms   15ms   20ms   25ms   30ms
+
+    ↑ = ISR de cruce por cero (apaga gate, mide período, programa timer)
+    ┌┐ = Pulso de disparo del TRIAC (programado por esp_timer one-shot)
 ```
+
+### Secuencia de la ISR de Cruce por Cero
+
+```
+Cruce por cero detectado (GPIO 4, RISING)
+            │
+            ▼
+    ┌───────────────┐
+    │ 1. Apagar gate │  ← Corte seguro del TRIAC (< 1 µs)
+    │    GPIO 15 = 0 │
+    └───────────────┘
+            │
+            ▼
+    ┌───────────────┐
+    │ 2. Medir período│  ← µs desde el último ZC (validar 7000-11000)
+    │    del semiciclo│
+    └───────────────┘
+            │
+            ▼
+    ┌───────────────┐
+    │ 3. Calcular    │  ← delay_us = (100 - power_percent) * period_us / 100
+    │    delay       │
+    └───────────────┘
+            │
+            ▼
+    ┌───────────────┐
+    │ 4. Programar   │  ← esp_timer_start_once(delay_us)
+    │    timer       │
+    └───────────────┘
+            │
+            ▼
+    [delay_us transcurre]
+            │
+            ▼
+    ┌───────────────┐
+    │ 5. Disparar    │  ← GPIO 15 = 1 (encender gate)
+    │    TRIAC       │
+    └───────────────┘
+            │
+            ▼
+    [TRIAC conduce hasta el próximo cruce por cero]
+            │
+            ▼
+    [Cruce por cero siguiente → repetir desde paso 1]
+```
+
+### Watchdog de Cruce por Cero
+
+| Condición | Acción |
+|-----------|--------|
+| Sin detección de ZC en 200 ms | Apaga TRIAC inmediatamente, log de error |
+| Período de semiciclo fuera de rango (7000—11000 µs) | Descarta muestra, mantiene estado anterior |
+| 3 semiciclos consecutivos fuera de rango | Transiciona a failsafe, apaga resistencia |
 
 ---
 
@@ -546,8 +582,8 @@ process-control-temperature/
 ├── PRD.md                             # Product Requirements Document (sistema completo)
 ├── .gitignore                         # Exclusiones Git (Node/Angular legacy)
 │
-├── app/                               # Especificación de la App Android
-│   ├── PRD.md                         # PRD v2.0 — Arquitectura MVVM + UDF
+├── app/                               # Documentación de interfaz externa
+│   ├── PRD.md                         # Especificación de requerimientos
 │   └── mensajes.md                    # Copia de referencia del protocolo BLE
 │
 ├── circuitos/                         # Diseños electrónicos (KiCad)
@@ -778,8 +814,7 @@ Durante operación activa (modo Manual o PID), la App debe enviar un mensaje de 
 | **ISR de cruce por cero** | < 50 µs | Tiempo de ejecución de la ISR |
 | **Delay de disparo TRIAC** | 0 — 10 ms | Mapeado a 0% — 100% de potencia |
 | **Precisión de timing** | < 1 ms | Validación del semiciclo AC |
-| **Latencia de parseo JSON** | < 10 ms (objetivo app) | Requisito no funcional de la app |
-| **MTU BLE** | 512 bytes | Negociado por la app para evitar fragmentación de JSON |
+| **MTU BLE** | 512 bytes | Negociado para evitar fragmentación de payloads JSON |
 
 ---
 
@@ -797,7 +832,7 @@ Durante operación activa (modo Manual o PID), la App debe enviar un mensaje de 
 - [x] Control PWM de ventiladores (25 kHz, dos canales)
 - [x] Diseño de PCBs en KiCad (adaptador, potencia, control)
 - [x] Generación de Gerbers para fabricación
-- [x] Especificación completa de app Android (PRD v2.0)
+- [x] Especificación del protocolo de comunicación BLE v2.0
 
 ### En Desarrollo / Pendiente
 
@@ -805,8 +840,6 @@ Durante operación activa (modo Manual o PID), la App debe enviar un mensaje de 
 - [ ] Identificación del sistema: respuesta escalón automatizada
 - [ ] Identificación del sistema: señal PRBS + mínimos cuadrados
 - [ ] Sintonización automática PID (Ziegler-Nichols, Cohen-Coon)
-- [ ] Aplicación Android (Jetpack Compose + Vico Charts)
-- [ ] Exportación de sesiones a CSV desde la app
 - [ ] Implementación del display LCD 16x2
 - [ ] Protocolo serial detallado (UART 115200)
 - [ ] Guardado de configuración en EEPROM/Flash
@@ -835,18 +868,6 @@ Durante operación activa (modo Manual o PID), la App debe enviar un mensaje de 
 |------------|-------------|
 | Esquemáticos | KiCad 7.x/8.x |
 | Simulación | (Pendiente: LTspice / Proteus) |
-
-### Aplicación Móvil (Planificada)
-
-| Componente | Tecnología |
-|------------|------------|
-| Lenguaje | Kotlin 2.0.0 |
-| UI Framework | Jetpack Compose |
-| Gráficas | Vico Charts 1.15.0 |
-| BLE | Android BluetoothGatt |
-| Serialización | Kotlinx Serialization JSON 1.7.0 |
-| DI | Koin 3.5.6 |
-| Async | Kotlin Coroutines 1.8.1 |
 
 ---
 
@@ -877,7 +898,6 @@ Durante operación activa (modo Manual o PID), la App debe enviar un mensaje de 
 |-----------|-----------|-----------|
 | PRD Sistema | [`PRD.md`](PRD.md) | Arquitectura, modos de control, algoritmos, requerimientos, seguridad |
 | PRD Firmware | [`código/PRD_SYSTEM_ESP32.md`](código/PRD_SYSTEM_ESP32.md) | Justificación de RTOS, tareas propuestas, comunicación serial |
-| PRD App Android (incluye protocolo BLE oficial) | [`app/PRD.md`](app/PRD.md) | Arquitectura MVVM + UDF, componentes Compose, máquina de estados BLE, protocolo JSON v2.0 |
 
 ### Recursos Externos
 
@@ -886,8 +906,6 @@ Durante operación activa (modo Manual o PID), la App debe enviar un mensaje de 
 - [NimBLE-Arduino GitHub](https://github.com/h2zero/NimBLE-Arduino)
 - [cJSON GitHub](https://github.com/DaveGamble/cJSON)
 - [KiCad Documentation](https://docs.kicad.org/)
-- [Jetpack Compose](https://developer.android.com/jetpack/compose)
-- [Vico Charts](https://patrykandpatrick.com/vico/)
 
 ---
 
@@ -899,7 +917,7 @@ Durante operación activa (modo Manual o PID), la App debe enviar un mensaje de 
 
 ![Planta térmica ensamblada](docs/images/planta_thermal.jpg)
 
-*Vista general de la planta térmica con resistencia calefactora, ventiladores y sensor de temperatura.*
+*Vista general de la planta térmica con resistencia calefactora, ventiladores y termocupla tipo K.*
 
 ---
 
@@ -908,14 +926,6 @@ Durante operación activa (modo Manual o PID), la App debe enviar un mensaje de 
 ![PCB del controlador ESP32](docs/images/pcb_controlador.jpg)
 
 *PCB del controlador basado en ESP32 con interfaz MAX6675, driver TRIAC y conectores de ventiladores.*
-
----
-
-### Aplicación Android
-
-![App Android - Modo Control PID](docs/images/app_pid_mode.png)
-
-*Interfaz de la app en modo Control PID mostrando gráfica en tiempo real (Vico Charts) y panel de configuración.*
 
 ---
 
